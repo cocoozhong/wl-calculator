@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>运费计算器</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: #f5f5f5;
+        }
+
+        .calculator-container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .title {
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .input-group input, 
+        .input-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+
+        .calculate-btn {
+            background-color: #007bff;
+            color: white;
+            flex: 2;
+        }
+
+        .clear-btn {
+            background-color: #6c757d;
+            color: white;
+            flex: 1;
+        }
+
+        .calculate-btn:hover {
+            background-color: #0056b3;
+        }
+
+        .clear-btn:hover {
+            background-color: #545b62;
+        }
+
+        .results {
+            margin-top: 20px;
+        }
+
+        .rate-card {
+            background: #f8f9fa;
+            padding: 8px;  /* 减小内边距 */
+            margin-bottom: 6px;  /* 减小卡片间距 */
+            border-radius: 4px;  /* 稍微减小圆角 */
+            border-left: 3px solid #007bff;  /* 减小边框宽度 */
+        }
+
+        .rate-card.lowest {
+            border-left-color: #28a745;
+            background-color: #e8f5e9;
+        }
+
+        .rate-card.invalid {
+            border-left-color: #dc3545;
+            background-color: #fff3f3;
+        }
+
+        .rate-card.invalid .fee {
+            color: #6c757d;
+        }
+
+        .carrier-name {
+            font-weight: bold;
+            margin-bottom: 2px;  /* 减小元素间距 */
+            font-size: 14px;  /* 减小字体大小 */
+        }
+
+        .fee {
+            color: #dc3545;
+            font-size: 14px;  /* 减小字体大小 */
+            margin-bottom: 2px;  /* 减小元素间距 */
+        }
+
+        .details {
+            color: #6c757d;
+            font-size: 12px;  /* 减小字体大小 */
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+
+            .calculator-container {
+                padding: 15px;
+            }
+
+            .button-group {
+                flex-direction: column;
+            }
+
+            button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="calculator-container">
+        <div class="title">WL01-0.0.2</div>
+        <div class="input-group">
+            <label for="weight">重量（公斤）</label>
+            <input type="number" id="weight" step="0.1" min="0" placeholder="请输入重量">
+        </div>
+        
+        <div class="input-group">
+            <label for="address">地址</label>
+            <textarea id="address" rows="3" placeholder="请最少输入完整的省份和城市，越详细越好"></textarea>
+        </div>
+
+        <div class="button-group">
+            <button class="clear-btn" id="clearBtn">清空</button>
+        </div>
+
+        <div id="results" class="results">
+            <!-- 预先显示所有物流公司 -->
+            <div class="rate-card">
+                <div class="carrier-name">中通快递</div>
+                <div class="fee">-</div>
+            </div>
+            <div class="rate-card">
+                <div class="carrier-name">圆通快递</div>
+                <div class="fee">-</div>
+            </div>
+            <div class="rate-card">
+                <div class="carrier-name">韵达快递</div>
+                <div class="fee">-</div>
+            </div>
+            <div class="rate-card">
+                <div class="carrier-name">安能物流</div>
+                <div class="fee">-</div>
+            </div>
+            <div class="rate-card">
+                <div class="carrier-name">安能定时达</div>
+                <div class="fee">-</div>
+            </div>
+            <div class="rate-card">
+                <div class="carrier-name">速腾物流</div>
+                <div class="fee">-</div>
+            </div>
+            <div class="rate-card">
+                <div class="carrier-name">顺心捷达</div>
+                <div class="fee">-</div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import freightCalculator from './js/data/freightCalculator.js';
+        
+        // 等待DOM加载完成
+        document.addEventListener('DOMContentLoaded', () => {
+            // 绑定按钮事件
+            document.getElementById('clearBtn').addEventListener('click', clearInputs);
+            
+            // 添加实时计算功能
+            document.getElementById('weight').addEventListener('input', debounce(calculateFees, 1000));
+            document.getElementById('address').addEventListener('input', debounce(calculateFees, 1000));
+            
+            // 添加回车键触发查询
+            document.getElementById('address').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault(); // 防止文本框换行
+                    calculateFees();
+                }
+            });
+        });
+        
+        // 防抖函数
+        function debounce(func, wait) {
+            let timeout;
+            return function() {
+                const context = this;
+                const args = arguments;
+                clearTimeout(timeout);
+                timeout = setTimeout(() => {
+                    func.apply(context, args);
+                }, wait);
+            };
+        }
+        
+        function calculateFees() {
+            const weight = parseFloat(document.getElementById('weight').value);
+            const address = document.getElementById('address').value;
+            
+            if (!weight || !address) {
+                const result = {
+                    success: false,
+                    message: '请输入重量和地址'
+                };
+                displayResults(result);
+                return;
+            }
+            
+            const result = freightCalculator.calculate(weight, address);
+            displayResults(result);
+        }
+        
+        function clearInputs() {
+            document.getElementById('weight').value = '';
+            document.getElementById('address').value = '';
+            document.getElementById('results').innerHTML = '';
+        }
+
+        function displayResults(result) {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '';
+            
+            if (!result.success) {
+                resultsDiv.innerHTML = `<div class="rate-card"><div class="details">${result.message}</div></div>`;
+                return;
+            }
+            
+            result.rates.forEach(rate => {
+                const rateCard = document.createElement('div');
+                rateCard.className = `rate-card${rate.isLowest ? ' lowest' : ''}${!rate.isValid ? ' invalid' : ''}`;
+                
+                rateCard.innerHTML = `
+                    <div class="carrier-name">${rate.carrier}</div>
+                    <div class="fee">${rate.isValid ? '￥' : ''}${rate.fee}</div>
+                    ${rate.isLowest ? '<div class="details" style="color: #28a745">✓ 最低价格</div>' : ''}
+                `;
+                
+                resultsDiv.appendChild(rateCard);
+            });
+        }
+    </script>
+    <script type="module">
+        // 导入并运行测试
+        import('/js/test/priceTest.js').then(module => {
+            // 当页面加载完成后自动运行测试
+            window.runTest = () => {
+                module.default.runTests();
+            };
+            console.log('测试模块已加载，请在控制台输入 runTest() 来运行测试');
+        });
+    </script>
+</body>
+</html>
